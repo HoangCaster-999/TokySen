@@ -1,14 +1,23 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- native images used for art-directed sizing */
 
-import { ChevronDown, ChevronLeft, ChevronRight, Clock, MapPin, Menu, Minus, Phone, Plus, Send, ShoppingCart, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Clock, MapPin, Menu, Phone, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-// ─── restaurant order settings ─────────────────────────────────────────────────
+// ─── reservation settings ──────────────────────────────────────────────────────
 // WhatsApp-Nummer des Restaurants (nur Ziffern, mit Ländervorwahl, ohne + / Leerzeichen).
 // Hinweis: Dies ist die Festnetznummer der Website. Falls WhatsApp über eine andere
 // (Mobil-)Nummer läuft, hier einfach ersetzen.
 const WHATSAPP_NUMBER = "493066508191";
+
+// Vorgefüllte Nachricht für Reservierung & Vorbestellung.
+const RESERVATION_MESSAGE =
+  "Hallo TokySen, ich möchte gern einen Tisch reservieren und vorbestellen.\n\n" +
+  "👤 Name:\n📅 Datum:\n🕒 Uhrzeit:\n👥 Personen:\n🍽️ Bestellung:";
+
+// Direkt api.whatsapp.com verwenden: wa.me wandelt bei der Weiterleitung
+// %20 (Leerzeichen) in "+" um, wodurch die Nachricht "+"-Zeichen enthält.
+const WHATSAPP_RESERVE_URL = `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(RESERVATION_MESSAGE)}`;
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -33,50 +42,24 @@ interface MenuSubSection {
   items: MenuItem[];
 }
 
-// ─── cart types & helpers ──────────────────────────────────────────────────────
+// ─── price helpers ─────────────────────────────────────────────────────────────
 
-interface Variant {
-  label?: string;   // z.B. "Hähnchen (B)" oder "0,25 l" – undefined bei Einzelpreis
-  price: string;    // Anzeige-Preis, z.B. "4,90 €"
-  amount: number;   // numerischer Wert in Euro
-}
-
-interface CartLine {
-  key: string;      // eindeutig: Name (+ Variante)
-  name: string;
-  variant?: string;
-  price: string;
-  amount: number;
-  qty: number;
-}
-
-/** "4,90 €" -> 4.9 ; nimmt den ersten Euro-Betrag im String. */
-function parseAmount(price: string): number {
-  const m = price.match(/(\d+),(\d+)/);
-  return m ? parseFloat(`${m[1]}.${m[2]}`) : 0;
-}
-
-/** Formatiert einen Euro-Betrag deutsch: 12.5 -> "12,50 €". */
-function formatEuro(amount: number): string {
-  return `${amount.toFixed(2).replace(".", ",")} €`;
-}
-
-/** Bestellbare Varianten eines Gerichts ableiten (aus options oder Preis-String). */
-function getVariants(item: MenuItem): Variant[] {
-  if (item.options?.length) {
-    return item.options.map((o) => ({ label: o.label, price: o.price, amount: parseAmount(o.price) }));
-  }
+/**
+ * Preiszeilen eines Gerichts: entweder aus `options` (z.B. Tofu / Hähnchen …)
+ * oder aus einem Mehrfachpreis-String ("0,25 l – 2,90 € | 0,40 l – 4,50 €").
+ * Einzelpreise ergeben keine Zeilen – sie stehen bereits in der Kopfzeile.
+ */
+function getPriceRows(item: MenuItem): PriceOption[] {
+  if (item.options?.length) return item.options;
   if (!item.price) return [];
   const segments = item.price.split("|");
-  if (segments.length === 1) {
-    return [{ price: item.price.trim(), amount: parseAmount(item.price) }];
-  }
-  // Mehrfachpreise (z.B. Getränke): "0,25 l – 2,90 € | 0,40 l – 4,50 €"
+  if (segments.length === 1) return [];
   return segments.map((seg) => {
     const priceMatch = seg.match(/(\d+,\d+)\s*€/);
-    const price = priceMatch ? priceMatch[0] : seg.trim();
-    const label = seg.replace(/(\d+,\d+)\s*€/, "").replace(/[–-]/g, "").trim();
-    return { label: label || undefined, price: price.trim(), amount: parseAmount(price) };
+    return {
+      label: seg.replace(/(\d+,\d+)\s*€/, "").replace(/[–-]/g, "").trim(),
+      price: priceMatch ? priceMatch[0] : seg.trim(),
+    };
   });
 }
 
@@ -732,12 +715,8 @@ function FoodShowcase({ images }: { images: typeof FOOD_IMAGES }) {
   );
 }
 
-type AddToCart = (name: string, variant: string | undefined, amount: number, price: string) => void;
-
-function MenuItemCard({ item, onAdd }: { item: MenuItem; onAdd: AddToCart }) {
-  const fromPrice = item.options?.[0]?.price;
-  const variants = getVariants(item);
-  const single = variants.length === 1 && !variants[0].label;
+function MenuItemCard({ item }: { item: MenuItem }) {
+  const rows = getPriceRows(item);
   return (
     <div className="menu-item">
       <div className="menu-item-header">
@@ -747,47 +726,27 @@ function MenuItemCard({ item, onAdd }: { item: MenuItem; onAdd: AddToCart }) {
           {item.note && <span className="menu-item-note"> ({item.note})</span>}
         </span>
         <span className="menu-item-price">
-          {item.price ?? (fromPrice ? `ab ${fromPrice}` : "")}
+          {rows.length > 0 ? `ab ${rows[0].price}` : item.price ?? ""}
         </span>
       </div>
       {item.description && <p className="menu-item-desc">{item.description}</p>}
       {item.allergens && <p className="menu-item-allergens">Allergene: {item.allergens}</p>}
 
-      {variants.length > 0 && (
-        single ? (
-          <div className="menu-item-order">
-            <button
-              className="add-btn"
-              onClick={() => onAdd(item.name, undefined, variants[0].amount, variants[0].price)}
-              type="button"
-            >
-              <Plus size={15} strokeWidth={2.4} /> In den Warenkorb
-            </button>
-          </div>
-        ) : (
-          <div className="menu-item-options">
-            {variants.map((v) => (
-              <div className="menu-option" key={v.label}>
-                <span className="menu-option-label">{v.label}</span>
-                <span className="menu-option-price">{v.price}</span>
-                <button
-                  aria-label={`${item.name} – ${v.label} in den Warenkorb`}
-                  className="add-btn add-btn--icon"
-                  onClick={() => onAdd(item.name, v.label, v.amount, v.price)}
-                  type="button"
-                >
-                  <Plus size={15} strokeWidth={2.4} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )
+      {rows.length > 0 && (
+        <div className="menu-item-options">
+          {rows.map((row) => (
+            <div className="menu-option" key={row.label || row.price}>
+              <span className="menu-option-label">{row.label}</span>
+              <span className="menu-option-price">{row.price}</span>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-function MenuTabContent({ sections, onAdd }: { sections: MenuSubSection[]; onAdd: AddToCart }) {
+function MenuTabContent({ sections }: { sections: MenuSubSection[] }) {
   return (
     <div className="menu-tab-content">
       {sections.map((section) => (
@@ -800,167 +759,12 @@ function MenuTabContent({ sections, onAdd }: { sections: MenuSubSection[]; onAdd
           </h4>
           <div className="menu-grid">
             {section.items.map((item, i) => (
-              <MenuItemCard item={item} key={item.id ?? `${section.title}-${i}`} onAdd={onAdd} />
+              <MenuItemCard item={item} key={item.id ?? `${section.title}-${i}`} />
             ))}
           </div>
         </div>
       ))}
     </div>
-  );
-}
-
-// ─── cart drawer ────────────────────────────────────────────────────────────────
-
-function CartDrawer({
-  open,
-  cart,
-  total,
-  onClose,
-  onQty,
-  onRemove,
-}: {
-  open: boolean;
-  cart: CartLine[];
-  total: number;
-  onClose: () => void;
-  onQty: (key: string, delta: number) => void;
-  onRemove: (key: string) => void;
-}) {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const [guests, setGuests] = useState("2");
-  const [notes, setNotes] = useState("");
-  const [error, setError] = useState("");
-
-  const handleSend = () => {
-    if (cart.length === 0) {
-      setError("Bitte wählen Sie zuerst mindestens ein Gericht aus.");
-      return;
-    }
-    if (!name.trim() || !phone.trim() || !date || !time) {
-      setError("Bitte Name, Telefon, Datum und Uhrzeit ausfüllen.");
-      return;
-    }
-    setError("");
-
-    const dateFmt = date.split("-").reverse().join("."); // YYYY-MM-DD -> DD.MM.YYYY
-    const lines = cart
-      .map((l) => `• ${l.qty}× ${l.name}${l.variant ? ` (${l.variant})` : ""} – ${formatEuro(l.amount * l.qty)}`)
-      .join("\n");
-
-    const message =
-      `*Neue Reservierung & Vorbestellung – TokySen*\n\n` +
-      `👤 Name: ${name.trim()}\n` +
-      `📞 Telefon: ${phone.trim()}\n` +
-      `📅 Datum: ${dateFmt}\n` +
-      `🕒 Uhrzeit: ${time} Uhr\n` +
-      `👥 Personen: ${guests}\n\n` +
-      `🍽️ *Bestellung:*\n${lines}\n\n` +
-      `*Gesamt: ${formatEuro(total)}*` +
-      (notes.trim() ? `\n\n📝 Anmerkungen: ${notes.trim()}` : "");
-
-    // Direkt api.whatsapp.com verwenden: wa.me wandelt bei der Weiterleitung
-    // %20 (Leerzeichen) in "+" um, wodurch die Nachricht "+"-Zeichen enthält.
-    const url = `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
-
-  return (
-    <>
-      <div className={`cart-overlay${open ? " cart-overlay--open" : ""}`} onClick={onClose} />
-      <aside
-        aria-hidden={!open}
-        aria-label="Warenkorb & Reservierung"
-        className={`cart-drawer${open ? " cart-drawer--open" : ""}`}
-      >
-        <div className="cart-head">
-          <h3>Warenkorb &amp; Reservierung</h3>
-          <button aria-label="Schließen" className="cart-close" onClick={onClose} type="button">
-            <X size={22} />
-          </button>
-        </div>
-
-        <div className="cart-body">
-          {cart.length === 0 ? (
-            <p className="cart-empty">Ihr Warenkorb ist noch leer.<br />Wählen Sie Ihre Gerichte aus der Speisekarte.</p>
-          ) : (
-            <ul className="cart-lines">
-              {cart.map((l) => (
-                <li className="cart-line" key={l.key}>
-                  <div className="cart-line-info">
-                    <span className="cart-line-name">
-                      {l.name}
-                      {l.variant && <span className="cart-line-variant"> · {l.variant}</span>}
-                    </span>
-                    <span className="cart-line-price">{formatEuro(l.amount * l.qty)}</span>
-                  </div>
-                  <div className="cart-line-actions">
-                    <div className="qty-stepper">
-                      <button aria-label="Weniger" onClick={() => onQty(l.key, -1)} type="button">
-                        <Minus size={14} />
-                      </button>
-                      <span>{l.qty}</span>
-                      <button aria-label="Mehr" onClick={() => onQty(l.key, 1)} type="button">
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                    <button aria-label="Entfernen" className="cart-remove" onClick={() => onRemove(l.key)} type="button">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {cart.length > 0 && (
-            <div className="cart-total">
-              <span>Gesamt</span>
-              <strong>{formatEuro(total)}</strong>
-            </div>
-          )}
-
-          <form className="cart-form" onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
-            <p className="cart-form-title">Ihre Reservierung</p>
-            <label>
-              Name*
-              <input onChange={(e) => setName(e.target.value)} type="text" value={name} />
-            </label>
-            <label>
-              Telefon*
-              <input onChange={(e) => setPhone(e.target.value)} type="tel" value={phone} />
-            </label>
-            <div className="cart-form-row">
-              <label>
-                Datum*
-                <input onChange={(e) => setDate(e.target.value)} type="date" value={date} />
-              </label>
-              <label>
-                Uhrzeit*
-                <input onChange={(e) => setTime(e.target.value)} type="time" value={time} />
-              </label>
-            </div>
-            <label>
-              Personen
-              <input min="1" onChange={(e) => setGuests(e.target.value)} type="number" value={guests} />
-            </label>
-            <label>
-              Anmerkungen
-              <textarea onChange={(e) => setNotes(e.target.value)} rows={2} value={notes} />
-            </label>
-
-            {error && <p className="cart-error">{error}</p>}
-
-            <button className="cart-submit" type="submit">
-              <Send size={17} /> Per WhatsApp senden
-            </button>
-            <p className="cart-hint">Ihre Bestellung wird als WhatsApp-Nachricht an das Restaurant gesendet.</p>
-          </form>
-        </div>
-      </aside>
-    </>
   );
 }
 
@@ -970,32 +774,7 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeTab, setActiveTab] = useState("vorspeisen");
-  const [cart, setCart] = useState<CartLine[]>([]);
-  const [cartOpen, setCartOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
-
-  const addToCart: AddToCart = (name, variant, amount, price) => {
-    const key = variant ? `${name}__${variant}` : name;
-    setCart((prev) => {
-      const existing = prev.find((l) => l.key === key);
-      if (existing) {
-        return prev.map((l) => (l.key === key ? { ...l, qty: l.qty + 1 } : l));
-      }
-      return [...prev, { key, name, variant, price, amount, qty: 1 }];
-    });
-  };
-
-  const changeQty = (key: string, delta: number) =>
-    setCart((prev) =>
-      prev
-        .map((l) => (l.key === key ? { ...l, qty: l.qty + delta } : l))
-        .filter((l) => l.qty > 0)
-    );
-
-  const removeLine = (key: string) => setCart((prev) => prev.filter((l) => l.key !== key));
-
-  const cartCount = cart.reduce((sum, l) => sum + l.qty, 0);
-  const cartTotal = cart.reduce((sum, l) => sum + l.amount * l.qty, 0);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
@@ -1038,7 +817,12 @@ export default function Home() {
               {item.label}
             </a>
           ))}
-          <a className="outline-button outline-button--dark" href="#kontakt">
+          <a
+            className="outline-button outline-button--dark"
+            href={WHATSAPP_RESERVE_URL}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
             Reservieren
           </a>
         </nav>
@@ -1082,7 +866,14 @@ export default function Home() {
           <p className="hero-eyebrow">Berlin Mahlsdorf · Japanische &amp; Vietnamesische Küche</p>
           <p className="hero-title">TokySen</p>
 <p className="hero-tagline">Tokyo trifft den Lotus</p>
-          <a className="outline-button hero-cta" href="#kontakt">Tisch reservieren</a>
+          <a
+            className="outline-button hero-cta"
+            href={WHATSAPP_RESERVE_URL}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Tisch reservieren
+          </a>
         </div>
         <div className="hero-scroll">
           <span>Entdecken</span>
@@ -1134,7 +925,7 @@ export default function Home() {
             ))}
           </nav>
 
-          {activeTabData && <MenuTabContent onAdd={addToCart} sections={activeTabData.sections} />}
+          {activeTabData && <MenuTabContent sections={activeTabData.sections} />}
 
           <div className="allergen-legend menu-tab-content">
             <p>
@@ -1300,28 +1091,6 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* ── CART ── */}
-      {cartCount > 0 && (
-        <button
-          aria-label={`Warenkorb öffnen, ${cartCount} Artikel`}
-          className="cart-fab"
-          onClick={() => setCartOpen(true)}
-          type="button"
-        >
-          <ShoppingCart size={20} />
-          <span className="cart-fab-count">{cartCount}</span>
-          <span className="cart-fab-total">{formatEuro(cartTotal)}</span>
-        </button>
-      )}
-
-      <CartDrawer
-        cart={cart}
-        onClose={() => setCartOpen(false)}
-        onQty={changeQty}
-        onRemove={removeLine}
-        open={cartOpen}
-        total={cartTotal}
-      />
     </main>
   );
 }
