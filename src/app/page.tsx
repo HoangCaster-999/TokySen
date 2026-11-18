@@ -883,7 +883,7 @@ export default function Home() {
 
       {/* ── ANNOUNCEMENT ── */}
       <a className="announcement" href="#kontakt">
-        <span>Täglich geöffnet</span> — Mo–Fr 11:00–22:00 Uhr · Sa, So &amp; Feiertage 11:30–22:00 Uhr
+        <span>Täglich geöffnet</span> — Mo–Fr 11:30–22:00 Uhr · Sa, So &amp; Feiertage 12:00–22:00 Uhr
       </a>
 
       {/* ── PAPER SECTION ── */}
@@ -1007,8 +1007,8 @@ export default function Home() {
               </div>
               <h3>Öffnungszeiten</h3>
               <ul className="hours-list">
-                <li>Mo – Fr: 11:00 – 22:00 Uhr</li>
-                <li>Sa, So &amp; Feiertage: 11:30 – 22:00 Uhr</li>
+                <li>Mo – Fr: 11:30 – 22:00 Uhr</li>
+                <li>Sa, So &amp; Feiertage: 12:00 – 22:00 Uhr</li>
               </ul>
             </div>
 
