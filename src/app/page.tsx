@@ -4,6 +4,9 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Clock, MapPin, Menu, Phone, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+// Basis-Pfad für GitHub Pages (z. B. "/TokySen"); lokal leer.
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 // ─── reservation settings ──────────────────────────────────────────────────────
 // WhatsApp-Nummer des Restaurants (nur Ziffern, mit Ländervorwahl, ohne + / Leerzeichen).
 // Hinweis: Dies ist die Festnetznummer der Website. Falls WhatsApp über eine andere
@@ -525,29 +528,29 @@ const MENU_TABS = [
 ];
 
 const FOOD_IMAGES = [
-  { src: "/images/món ăn thực tế 1.png",  alt: "Hausgemachtes Sushi – TokySen",    pos: "center 32%" },
-  { src: "/images/món ăn thực tế 2.png",  alt: "Asiatisches Gericht – TokySen",    pos: "center 42%" },
-  { src: "/images/món ăn thực tế 3.png",  alt: "Frische Zutaten – TokySen",        pos: "center 44%" },
-  { src: "/images/món ăn thực tế 4.png",  alt: "Wok-Gericht – TokySen",            pos: "center 44%" },
-  { src: "/images/món ăn thực tế 5.png",  alt: "Sushi Auswahl – TokySen",          pos: "center 42%" },
-  { src: "/images/món ăn thực tế 6.png",  alt: "Vietnamesische Küche – TokySen",   pos: "center 42%" },
-  { src: "/images/món ăn thực tế 7.png",  alt: "Japanische Spezialität – TokySen", pos: "center 44%" },
-  { src: "/images/món ăn thực tế 9.png",  alt: "Spezialrolle – TokySen",           pos: "center 40%" },
-  { src: "/images/món ăn thực tế 10.png", alt: "Asiatische Küche – TokySen",       pos: "center 38%" },
+  { src: `${BASE_PATH}/images/món ăn thực tế 1.png`,  alt: "Hausgemachtes Sushi – TokySen",    pos: "center 32%" },
+  { src: `${BASE_PATH}/images/món ăn thực tế 2.png`,  alt: "Asiatisches Gericht – TokySen",    pos: "center 42%" },
+  { src: `${BASE_PATH}/images/món ăn thực tế 3.png`,  alt: "Frische Zutaten – TokySen",        pos: "center 44%" },
+  { src: `${BASE_PATH}/images/món ăn thực tế 4.png`,  alt: "Wok-Gericht – TokySen",            pos: "center 44%" },
+  { src: `${BASE_PATH}/images/món ăn thực tế 5.png`,  alt: "Sushi Auswahl – TokySen",          pos: "center 42%" },
+  { src: `${BASE_PATH}/images/món ăn thực tế 6.png`,  alt: "Vietnamesische Küche – TokySen",   pos: "center 42%" },
+  { src: `${BASE_PATH}/images/món ăn thực tế 7.png`,  alt: "Japanische Spezialität – TokySen", pos: "center 44%" },
+  { src: `${BASE_PATH}/images/món ăn thực tế 9.png`,  alt: "Spezialrolle – TokySen",           pos: "center 40%" },
+  { src: `${BASE_PATH}/images/món ăn thực tế 10.png`, alt: "Asiatische Küche – TokySen",       pos: "center 38%" },
   ...Array.from({ length: 39 }, (_, i) => ({
-    src: `/images/món ăn mới ${i + 1}.jpeg`,
+    src: `${BASE_PATH}/images/món ăn mới ${i + 1}.jpeg`,
     alt: "Gericht – TokySen",
     pos: "center 42%",
   })),
 ];
 
 const INTERIOR_IMAGES = [
-  { src: "/images/không gian trong quán 1.png", alt: "Gemütliche Atmosphäre im TokySen Restaurant" },
-  { src: "/images/không gian trong quán.png",   alt: "Innenraum des TokySen Restaurants" },
-  { src: "/images/không gian trong quán 2.png", alt: "Weiterer Innenbereich des TokySen Restaurants" },
-  { src: "/images/mặt trước nhà hàng.png",       alt: "TokySen Restaurant – Außenansicht Hönower Str. 100" },
+  { src: `${BASE_PATH}/images/không gian trong quán 1.png`, alt: "Gemütliche Atmosphäre im TokySen Restaurant" },
+  { src: `${BASE_PATH}/images/không gian trong quán.png`,   alt: "Innenraum des TokySen Restaurants" },
+  { src: `${BASE_PATH}/images/không gian trong quán 2.png`, alt: "Weiterer Innenbereich des TokySen Restaurants" },
+  { src: `${BASE_PATH}/images/mặt trước nhà hàng.png`,       alt: "TokySen Restaurant – Außenansicht Hönower Str. 100" },
   ...Array.from({ length: 7 }, (_, i) => ({
-    src: `/images/không gian mới ${i + 1}.jpeg`,
+    src: `${BASE_PATH}/images/không gian mới ${i + 1}.jpeg`,
     alt: "Innenbereich des TokySen Restaurants",
   })),
 ];
@@ -808,7 +811,7 @@ export default function Home() {
       {/* ── HEADER ── */}
       <header className={`site-header${scrolled ? " site-header--scrolled" : ""}`}>
         <a aria-label="TokySen Restaurant" className="header-logo" href="#top">
-          <img alt="TokySen Restaurant Logo" src="/images/logo.png" />
+          <img alt="TokySen Restaurant Logo" src={`${BASE_PATH}/images/logo.png`} />
         </a>
 
         <nav aria-label="Hauptnavigation" className="desktop-nav">
@@ -858,7 +861,7 @@ export default function Home() {
           loop
           muted
           playsInline
-          src="/videos/Ultra_cinematic_Japanese_cuisi (online-video-cutter.com).mp4"
+          src={`${BASE_PATH}/videos/Ultra_cinematic_Japanese_cuisi (online-video-cutter.com).mp4`}
         />
         <div className="hero-shade" />
         <CranesLayer />

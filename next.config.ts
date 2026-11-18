@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
+// GitHub Pages: statischer Export, ausgeliefert unter /<repo-name>.
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 const nextConfig: NextConfig = {
-  output: "standalone",
+  output: "export",
+  basePath,
+  trailingSlash: true,
+  images: { unoptimized: true },
   turbopack: {
     root: process.cwd(),
   },
